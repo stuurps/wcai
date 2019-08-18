@@ -7,7 +7,6 @@ library(shinyjs)
 
 
 # add an asterisk to an input label
-fieldsMandatory <- c("lati", "loni", "rating", "email", "contact")
 labelMandatory <- function(label) {
   tagList(
     label,
@@ -17,7 +16,7 @@ labelMandatory <- function(label) {
 
 ui <- shinyUI(
   bootstrapPage(
-    id = "form",
+    useShinyjs(),
     leafletOutput("map"),
     textInput("lati", labelMandatory("Latitude"), ""),
     textInput("loni", labelMandatory("Longitude"), ""),
@@ -27,26 +26,13 @@ ui <- shinyUI(
     checkboxInput("contact", labelMandatory("Contact me about new spots"), FALSE),
     actionButton("submit", "Submit")
     )
-  ),
+  )
   
 server <- shinyServer(function(input, output, session) {
   
   # Enable the Submit button when all mandatory fields are filled out
-  result<-reactive({
-    nchar(input$email)
-  })
-  
+  observe({toggleState(id = "submit", condition = nchar(input$email) >= 3 & nchar(input$lati) > 8)
 
-  observe({
-    useShinyjs()
-    if(result()>3){
-      enable("submit")
-    } else {
-      disable("submit")
-    }
-  })
-   
-  
   
   data <- fread("wc_loc")
   ## Make your initial map
@@ -74,28 +60,7 @@ server <- shinyServer(function(input, output, session) {
     
   })
   
-  # action to take when submit button is pressed
-  observeEvent(input$submit, {
-    # User-experience stuff
-    shinyjs::disable("submit")
-    shinyjs::show("submit_msg")
-    shinyjs::hide("error")
-    
-    # Save the data (show an error message in case of error)
-    tryCatch({
-      saveData(formData())
-      shinyjs::reset("form")
-      shinyjs::hide("form")
-      shinyjs::show("thankyou_msg")
-    },
-    error = function(err) {
-      shinyjs::html("error_msg", err$message)
-      shinyjs::show(id = "error", anim = TRUE, animType = "fade")
-    },
-    finally = {
-      shinyjs::enable("submit")
-      shinyjs::hide("submit_msg")
-    })
+  observeEvent(input$submit,{
     tmp <- NULL
     tmp$lat <- as.numeric(input$lati)
     tmp$lng <- as.numeric(input$loni)
@@ -109,6 +74,8 @@ server <- shinyServer(function(input, output, session) {
       addMarkers(lng = clng, lat = clat)
     
   })
+})
+
 })
 
 shinyApp(ui = ui, server = server)
